@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Week Type • One‑Line Notion Widget</title>
+  <style>
+    /* ————— Theme tokens that blend with Notion ————— */
+    :root{
+      --bg: transparent;               /* keep page bg transparent so Notion shows through */
+      --card-bg: #ffffff;               /* light card */
+      --fg: #0f172a;                    /* slate-900 */
+      --muted: #475569;                 /* slate-600 */
+      --border: rgba(15, 23, 42, .08);  /* soft border */
+      --red: #ef4444;                   /* red-500 */
+      --blue: #3b82f6;                  /* blue-500 */
+      --shadow: 0 1px 2px rgba(2, 6, 23, .04), 0 4px 16px rgba(2, 6, 23, .06);
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --card-bg: #0b0f19;             /* near Notion dark */
+        --fg: #e5e7eb;                  /* gray-200 */
+        --muted: #94a3b8;               /* slate-400 */
+        --border: rgba(148, 163, 184, .18);
+        --shadow: 0 1px 2px rgba(0,0,0,.25), 0 6px 24px rgba(0,0,0,.35);
+      }
+    }
+
+    /* ————— Page reset ————— */
+    html, body { height: 100%; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); }
+    body { font: 600 16px Inter, Inter var, system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans", Helvetica, Arial, ui-sans-serif, sans-serif; }
+
+    /* ————— Full-width, short-height strip ————— */
+    .strip { 
+      width: 100%;
+      display: grid; place-items: center; 
+      padding: 0; margin: 0; 
+    }
+    .card {
+      width: min(1100px, 100%);         /* fills Notion width but caps on ultra-wide */
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 14px 18px;               /* slim height */
+    }
+
+    /* ————— One-line text ————— */
+    .line { 
+      display: flex; align-items: center; justify-content: center; gap: .65ch;
+      font-weight: 700;
+      letter-spacing: .2px;
+      white-space: nowrap;              /* stay in one line */
+      overflow: hidden; text-overflow: ellipsis;
+      line-height: 1.2;
+      font-size: clamp(16px, 2.2vw, 22px); /* responsive but restrained */
+    }
+    .sep { color: var(--muted); font-weight: 600; }
+    .token { opacity: .95; }
+    .token.blue { color: var(--blue); }
+    .token.red  { color: var(--red); }
+    .arrow { font-size: 1.05em; line-height: 1; transform: translateY(-1px); }
+
+    /* Optional tiny caption (hidden by default) */
+    .caption { display:none; margin-top: 6px; text-align:center; color: var(--muted); font-weight:500; font-size: 12.5px; }
+  </style>
+</head>
+<body>
+  <div class="strip">
+    <div class="card">
+      <div id="line" class="line" aria-live="polite"></div>
+      <div id="cap" class="caption"></div>
+    </div>
+  </div>
+
+  <script>
+    // ————— Config —————
+    // Default semester start (week 1 begins). Must be a Monday for clean parity; adjust if needed.
+    const DEFAULT_START = '2025-09-01';
+    // URL params: ?start=YYYY-MM-DD  &  ?showWeek=1  &  ?labels=short|long
+
+    const qs = new URLSearchParams(location.search);
+    const START = qs.get('start') || DEFAULT_START;        
+    const SHOW_WEEK = qs.has('showWeek');                  // add ?showWeek=1 to include week number
+    const LABELS = qs.get('labels') || 'short';            // 'short' → lower / even / blue   | 'long' → lower (even, blue)
+
+    function toLocalDate(ymd){
+      const [y,m,d] = ymd.split('-').map(Number);
+      return new Date(y, m-1, d, 0, 0, 0, 0);
+    }
+    function mondayOf(d){
+      const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const day = (x.getDay()+6)%7; // Mon=0..Sun=6
+      x.setDate(x.getDate() - day);
+      x.setHours(0,0,0,0);
+      return x;
+    }
+    function weekIndex(start, today){
+      const s = mondayOf(start);
+      const t = mondayOf(today);
+      const days = Math.round((t - s) / 86400000);
+      return Math.floor(days/7) + 1; // week 1 at start
+    }
+
+    function render(){
+      const start = toLocalDate(START);
+      const today = new Date();
+      let w = weekIndex(start, today);
+      if (!isFinite(w)) w = 1; if (w < 1) w = 1; // clamp pre-start
+      const even = (w % 2 === 0);
+
+      const partsShort = even
+        ? [ 'lower', 'even', '<span class="token blue">blue</span>', '<span class="arrow token blue">▼</span>' ]
+        : [ 'upper', 'odd',  '<span class="token red">red</span>',  '<span class="arrow token red">▲</span>' ];
+
+      const partsLong = even
+        ? [ 'lower', '(even, <span class="token blue">blue</span>)', '<span class="arrow token blue">▼</span>' ]
+        : [ 'upper', '(odd,  <span class="token red">red</span>)',  '<span class="arrow token red">▲</span>' ];
+
+      const parts = (LABELS === 'long' ? partsLong : partsShort);
+      const sep = '<span class="sep">•</span>';
+
+      const lineEl = document.getElementById('line');
+      const capEl  = document.getElementById('cap');
+
+      lineEl.innerHTML = (
+        (SHOW_WEEK ? ('<span class="token" style="opacity:.9">week ' + w + '</span>' + sep) : '') +
+        parts.join(sep)
+      );
+
+      // Optionally show a small caption with the computed start & today (kept hidden by CSS)
+      capEl.textContent = `Start: ${START}. Today: ${today.toLocaleDateString('en-GB')}.`;
+    }
+
+    render();
+    // refresh hourly in case the day flips while open
+    setInterval(render, 60 * 60 * 1000);
+  </script>
+</body>
+</html>
