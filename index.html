@@ -1,61 +1,54 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Week Type • One‑Line Notion Widget</title>
+  <title>Тип недели — однотекстовый виджет</title>
   <style>
-    /* —— Visual language: sleek, neutral, Notion-friendly —— */
     :root{
-      --bg: transparent;                 /* let Notion page show through */
-      --card-bg: rgba(10, 13, 20, .66);  /* dark, semi‑transparent */
-      --fg: rgba(243, 244, 246, .96);    /* near‑white on dark */
-      --muted: rgba(203, 213, 225, .85); /* slate‑200 */
-      --blue: #60a5fa;                   /* light blue → readable on dark */
-      --red:  #f43f5e;                   /* rose‑500 → readable on dark */
+      --bg: transparent;                  /* фон страницы — сквозной */
+      --rect-bg: rgba(12, 15, 23, .72);   /* тёмный полупрозрачный прямоугольник */
+      --fg: rgba(243,244,246,.96);        /* почти белый текст */
+      --blue: #60a5fa;                    /* голубой, читается на тёмном */
+      --red:  #f43f5e;                    /* красный (rose‑500), читается на тёмном */
     }
 
     html, body { height: 100%; margin:0; padding:0; background: var(--bg); color: var(--fg); }
-    body { font: 400 16px Inter, "SF Pro Text", system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans", Helvetica, Arial, ui-sans-serif, sans-serif; }
+    body { font: 400 16px "Inter var", Inter, "SF Pro Text", system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans", Helvetica, Arial, ui-sans-serif, sans-serif; }
 
-    /* —— Full width strip; narrow card —— */
-    .strip { width: 100%; display:grid; place-items:center; }
-    .card  { 
-      width: min(720px, 100%);           /* narrower and less wide */
-      background: var(--card-bg);
-      /* no shadow, no border, no radius */
-      border: none; border-radius: 0; box-shadow: none;
-      padding: 10px 14px;                /* slim height */
-      -webkit-backdrop-filter: saturate(140%) blur(4px);
-      backdrop-filter: saturate(140%) blur(4px);
+    /* Прямоугольник занимает весь iframe без пустот */
+    .rect{ 
+      box-sizing: border-box;
+      width:100%; height:100%; 
+      background: var(--rect-bg);
+      display:flex; align-items:center; justify-content:center; 
+      /* без рамок, теней, скруглений */
+      border:none; border-radius:0; box-shadow:none; 
+      padding:0 14px; /* чтобы текст не касался краёв */
+      -webkit-backdrop-filter: saturate(140%) blur(2px);
+      backdrop-filter: saturate(140%) blur(2px);
     }
 
-    /* —— Single center-aligned line —— */
-    .line { 
-      display:flex; align-items:center; justify-content:center; gap:.6ch;
+    .line{
       white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-      letter-spacing:.1px; line-height:1.25; font-weight:400; /* not bold */
-      font-size: clamp(15px, 1.9vw, 18px);
+      font-weight:400; letter-spacing:.15px; line-height:1; 
+      font-size: clamp(15px, 1.8vw, 18px); /* стильный, не жирный */
     }
-    .sep   { color: var(--muted); }
-    .tri   { font-size: 1.05em; line-height:1; transform: translateY(-.5px); }
-    .blue  { color: var(--blue); }
-    .red   { color: var(--red); }
+    .sep{ opacity:.8; }
+    .tri{ font-size:1.05em; }
+    .tri.blue{ color: var(--blue); }
+    .tri.red{  color: var(--red); }
   </style>
 </head>
 <body>
-  <div class="strip">
-    <div class="card">
-      <div id="line" class="line" aria-live="polite">—</div>
-    </div>
+  <div class="rect">
+    <div id="line" class="line" aria-live="polite">—</div>
   </div>
 
   <script>
-    // —— Config ——
-    // Week 1 start (ideally a Monday). Override via ?start=YYYY-MM-DD
-    const DEFAULT_START = '2025-09-01';
+    // Настройка: старт 1-й недели (обычно понедельник). Переопредели через ?start=ГГГГ-ММ-ДД
     const qs = new URLSearchParams(location.search);
-    const START = qs.get('start') || DEFAULT_START;
+    const START = qs.get('start') || '2025-09-01';
 
     function toLocalDate(ymd){
       const [y,m,d] = (ymd||'').split('-').map(Number);
@@ -63,34 +56,38 @@
     }
     function mondayOf(d){
       const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      const day = (x.getDay()+6)%7; // Mon=0..Sun=6
+      const day = (x.getDay()+6)%7; // Пн=0..Вс=6
       x.setDate(x.getDate() - day);
       x.setHours(0,0,0,0);
       return x;
     }
     function weekIndex(start, today){
       const s = mondayOf(start); const t = mondayOf(today);
-      const days = Math.round((t - s) / 86400000);
-      return Math.floor(days/7) + 1; // start week is 1
+      const days = Math.round((t - s)/86400000);
+      return Math.floor(days/7) + 1; // неделя старта = 1
     }
+    const pad2 = n => String(n).padStart(2,'0');
 
     function render(){
-      const start = toLocalDate(START);
       const today = new Date();
+      const dateStr = `${pad2(today.getDate())}.${pad2(today.getMonth()+1)}.${pad2(today.getFullYear()%100)}`;
+
+      const start = toLocalDate(START);
       let w = weekIndex(start, today); if (!isFinite(w) || w < 1) w = 1;
       const even = (w % 2 === 0);
 
-      const dir  = even ? 'lower' : 'upper';
-      const par  = even ? 'even'  : 'odd';
-      const triC = even ? 'blue'  : 'red';
-      const tri  = even ? '▼'     : '▲';
+      const side = even ? 'нижняя' : 'верхняя';
+      const parity = even ? 'чётная' : 'нечётная';
+      const tri = even ? '▼' : '▲';
+      const triClass = even ? 'blue' : 'red';
 
-      const line = `${dir} <span class="sep">•</span> ${par} <span class="sep">•</span> <span class="tri ${triC}">${tri}</span>`;
-      document.getElementById('line').innerHTML = line;
+      document.getElementById('line').innerHTML =
+        `${dateStr}&nbsp;&nbsp;<span class="sep">|</span>&nbsp;&nbsp;${side}, ${parity}, <span class="tri ${triClass}">${tri}</span>`;
     }
 
     render();
-    setInterval(render, 60*60*1000); // refresh hourly
+    // На случай если страница открыта долго — обновлять раз в час
+    setInterval(render, 60*60*1000);
   </script>
 </body>
 </html>
