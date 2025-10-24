@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>Тип недели — однотекстовый виджет</title>
   <style>
     :root{
@@ -86,8 +89,20 @@
     }
 
     render();
-    // На случай если страница открыта долго — обновлять раз в час
-    setInterval(render, 60*60*1000);
+
+    // — Обновлять синхронно к началу минуты (мгновенный пересчёт около 00:00)
+    function msToNextMinute(){
+      const n = new Date();
+      return (60 - n.getSeconds()) * 1000 - n.getMilliseconds();
+    }
+    function tick(){
+      render();
+      setTimeout(tick, msToNextMinute());
+    }
+    setTimeout(tick, msToNextMinute());
+
+    // — Моментально пересчитывать при возвращении на страницу/вкладку
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) render(); });
   </script>
 </body>
 </html>
