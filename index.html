@@ -6,17 +6,17 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <title>Виджет: тип недели + часы</title>
-  <!-- Стильный, но спокойный шрифт; если не нужен внешний запрос — удали блок font -->
+  <title>Виджет: тип недели + цифровые часы</title>
+  <!-- Шрифты: спокойный гротеск + моно для цифр -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root{
       --bg: transparent;
       --rect-bg: rgba(12, 15, 23, .72);   /* тёмный полупрозрачный фон */
       --fg: rgba(243,244,246,.96);
-      --muted: rgba(203,213,225,.8);
+      --muted: rgba(203,213,225,.82);
       --blue: #60a5fa;                    /* читается на тёмном */
       --red:  #f43f5e;
     }
@@ -24,40 +24,27 @@
     body { font: 400 16px "Outfit", Inter, system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans", Helvetica, Arial, ui-sans-serif, sans-serif; }
 
     /* Прямоугольник = весь iframe без пустот */
-    .rect{
-      width:100%; height:100%; box-sizing:border-box; background:var(--rect-bg);
-      display:grid; place-items:center; border:none; border-radius:0; box-shadow:none; padding:0; 
-      -webkit-backdrop-filter: saturate(140%) blur(2px);
-      backdrop-filter: saturate(140%) blur(2px);
-    }
-    /* Контент: часы + строка снизу */
-    .wrap{
-      width:100%; height:100%; display:grid; grid-template-rows: 1fr auto; align-items:center; justify-items:center; 
-      padding: 12px; gap: 12px; box-sizing:border-box;
+    .rect{ width:100%; height:100%; box-sizing:border-box; background:var(--rect-bg);
+           display:grid; place-items:center; border:none; border-radius:0; box-shadow:none; padding:0 18px; 
+           -webkit-backdrop-filter: saturate(140%) blur(2px); backdrop-filter: saturate(140%) blur(2px); }
+
+    /* Сетка контента: день недели сверху, часы по центру, строка снизу */
+    .wrap{ width:100%; height:100%; box-sizing:border-box; display:grid; grid-template-rows: auto 1fr auto; gap: 10px; }
+
+    .weekday{ text-align:center; color:var(--muted); font-weight:500; letter-spacing:.2px; font-size: clamp(14px, 1.6vw, 18px); }
+
+    .clock{ display:grid; place-items:center; }
+    .time{
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-feature-settings: "tnum" 1, "ss01" 1;  /* табличные цифры */
+      font-variant-numeric: tabular-nums;
+      line-height: 1; font-weight:500; letter-spacing: .02em;
+      /* Подгоняем размер под высоту виджета: крупные цифровые часы */
+      font-size: clamp(36px, 14vh, 110px);
     }
 
-    /* Аналоговые часы */
-    .clock{ width:100%; height:100%; display:grid; place-items:center; }
-    .clock svg{ 
-      /* занимаем большую часть высоты, но оставляем место для строки */
-      height:min(72vh, 78%); aspect-ratio:1/1; width:auto; max-width:88vw;
-      display:block;
-    }
-    .dial { stroke: var(--muted); stroke-width: .8; opacity:.65; }
-    .dial-major { stroke-width: 1.6; opacity:.85; }
-    .hand { stroke: var(--fg); stroke-linecap: round; }
-    .hand.hour { stroke-width: 2.8; }
-    .hand.min  { stroke-width: 2.2; opacity:.95; }
-    .hand.sec  { stroke-width: 1.6; }
-    .pivot { fill: var(--fg); }
-
-    /* Цвет секундной стрелки и треугольника = тип недели */
-    :root[data-parity="even"] .hand.sec { stroke: var(--blue); }
-    :root[data-parity="odd"]  .hand.sec { stroke: var(--red); }
-
-    /* Одна строка текста по центру */
     .line{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; line-height:1; 
-           font-weight:400; letter-spacing:.2px; font-size: clamp(15px, 1.9vw, 18px); }
+           font-weight:400; letter-spacing:.15px; font-size: clamp(15px, 1.8vw, 18px); }
     .sep{ opacity:.8; }
     .tri{ font-size:1.05em; }
     .tri.blue{ color: var(--blue); }
@@ -67,18 +54,8 @@
 <body>
   <div class="rect">
     <div class="wrap">
-      <div class="clock" aria-label="Аналоговые часы" role="img">
-        <svg id="clk" viewBox="0 0 100 100" aria-hidden="true">
-          <!-- циферблат -->
-          <circle cx="50" cy="50" r="46" fill="none" class="dial" />
-          <g id="ticks"></g>
-          <!-- стрелки -->
-          <g id="h" class="hand hour"><line x1="50" y1="50" x2="50" y2="30"/></g>
-          <g id="m" class="hand min"><line x1="50" y1="50" x2="50" y2="22"/></g>
-          <g id="s" class="hand sec"><line x1="50" y1="52" x2="50" y2="16"/></g>
-          <circle cx="50" cy="50" r="1.8" class="pivot" />
-        </svg>
-      </div>
+      <div id="weekday" class="weekday">—</div>
+      <div class="clock"><div id="time" class="time" aria-live="polite">00:00:00</div></div>
       <div id="line" class="line" aria-live="polite">—</div>
     </div>
   </div>
@@ -94,71 +71,44 @@
     function mondayOf(d){ const x=new Date(d.getFullYear(), d.getMonth(), d.getDate()); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); x.setHours(0,0,0,0); return x; }
     function weekIndex(start, today){ const s=mondayOf(start), t=mondayOf(today); const days=Math.round((t-s)/86400000); return Math.floor(days/7)+1; }
 
-    // —— Построение рисок на циферблате ——
-    (function buildTicks(){
-      const g = document.getElementById('ticks');
-      for(let i=0;i<60;i++){
-        const len = (i%5===0) ? 5 : 2.6;
-        const cls = (i%5===0) ? 'dial dial-major' : 'dial';
-        const a = i*6*Math.PI/180;
-        const r1 = 46, r2 = r1 - len;
-        const x1 = 50 + r1*Math.sin(a), y1 = 50 - r1*Math.cos(a);
-        const x2 = 50 + r2*Math.sin(a), y2 = 50 - r2*Math.cos(a);
-        const el = document.createElementNS('http://www.w3.org/2000/svg','line');
-        el.setAttribute('x1', x1.toFixed(3)); el.setAttribute('y1', y1.toFixed(3));
-        el.setAttribute('x2', x2.toFixed(3)); el.setAttribute('y2', y2.toFixed(3));
-        el.setAttribute('class', cls);
-        g.appendChild(el);
-      }
-    })();
+    function render(){
+      const now = new Date();
 
-    // —— Обновление стрелок ——
-    const gh = document.getElementById('h');
-    const gm = document.getElementById('m');
-    const gs = document.getElementById('s');
-    function setHands(now){
-      const h = now.getHours()%12;
-      const m = now.getMinutes();
-      const s = now.getSeconds();
-      const ha = h*30 + m*0.5 + s*(0.5/60);
-      const ma = m*6 + s*0.1;
-      const sa = s*6;
-      gh.setAttribute('transform', `rotate(${ha} 50 50)`);
-      gm.setAttribute('transform', `rotate(${ma} 50 50)`);
-      gs.setAttribute('transform', `rotate(${sa} 50 50)`);
-    }
+      // День недели (сверху)
+      const weekday = new Intl.DateTimeFormat('ru-RU',{weekday:'long'}).format(now);
+      document.getElementById('weekday').textContent = weekday;
 
-    // —— Обновление строки даты/недели ——
-    function renderLine(now){
+      // Цифровые часы по центру
+      const hh = pad2(now.getHours());
+      const mm = pad2(now.getMinutes());
+      const ss = pad2(now.getSeconds());
+      document.getElementById('time').textContent = `${hh}:${mm}:${ss}`;
+
+      // Строка снизу: дата + тип недели
       const dateStr = `${pad2(now.getDate())}.${pad2(now.getMonth()+1)}.${pad2(now.getFullYear()%100)}`;
-      const weekday = new Intl.DateTimeFormat('ru-RU',{weekday:'long'}).format(now); // «понедельник»
-
       const start = toLocalDate(START);
       let w = weekIndex(start, now); if(!isFinite(w) || w<1) w=1;
       const even = (w%2===0);
       const side = even ? 'нижняя' : 'верхняя';
-      const parity = even ? 'чётная' : 'нечётная';
+      const parity = even ? 'четная' : 'нечетная'; // без ё, как в примере
       const tri = even ? '▼' : '▲';
       const triClass = even ? 'blue' : 'red';
 
-      document.documentElement.setAttribute('data-parity', even ? 'even' : 'odd');
       document.getElementById('line').innerHTML =
-        `${dateStr}&nbsp;&nbsp;<span class="sep">|</span>&nbsp;&nbsp;${weekday}&nbsp;&nbsp;<span class="sep">|</span>&nbsp;&nbsp;${side}, ${parity}, <span class="tri ${triClass}">${tri}</span>`;
+        `${dateStr}&nbsp;&nbsp;<span class="sep">|</span>&nbsp;&nbsp;${side}, ${parity}, <span class="tri ${triClass}">${tri}</span>`;
     }
 
-    function tick(){
+    function schedule(){
       const now = new Date();
-      setHands(now);
-      renderLine(now);
-      const ms = 1000 - now.getMilliseconds();
-      setTimeout(tick, ms);
+      render();
+      setTimeout(schedule, 1000 - now.getMilliseconds());
     }
 
-    // Пересчёт при возврате на вкладку/Notion
-    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ setHands(new Date()); renderLine(new Date()); } });
+    // Пересчет при возврате к вкладке/странице
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) render(); });
 
     // Старт
-    tick();
+    schedule();
   </script>
 </body>
 </html>
